@@ -1,5 +1,7 @@
 import * as net from "net";
 import EventEmitter from "events";
+import { AckResponse, DataResponse, PongResponse, ResponseType, tryConvertToResponse } from "./response";
+import { Command } from "./command";
 
 /**
  * Single client TCP server to communicate with the luabridge script running on the emulator.
@@ -10,14 +12,43 @@ export default class BridgeServer {
   private emitter = new EventEmitter();
 
   /**
-   * Add an event listener for this server.
-   * @param event The event to listen for.
-   * @param cb The callback function to call when the event is fired.
+   * Adds an event listener for connection events.
+   * @param cb The callback to call on event fire.
    */
-  public on(event: "connect" | "disconnect", cb: () => void): void;
-  public on(event: "data", cb: (content: string) => void): void;
-  public on(event: "connect" | "disconnect" | "data", cb: (content: string) => void): void {
-    this.emitter.on(event, cb);
+  public onConnect(cb: () => void): void {
+    this.emitter.on(BridgeServerEvents.Connect, cb);
+  }
+
+  /**
+   * Adds an event listener for disconnection events.
+   * @param cb The callback to call on event fire.
+   */
+  public onDisconnect(cb: () => void): void {
+    this.emitter.on(BridgeServerEvents.Disconnect, cb);
+  }
+
+  /**
+   * Adds an event listener for acknowledgement events.
+   * @param cb The callback to call on event fire.
+   */
+  public onAcknowledgement(cb: (response: AckResponse) => void): void {
+    this.emitter.on(BridgeServerEvents.Acknowledgement, cb);
+  }
+
+  /**
+   * Adds an event listener for data events.
+   * @param cb The callback to call on event fire.
+   */
+  public onData(cb: (response: DataResponse) => void): void {
+    this.emitter.on(BridgeServerEvents.Data, cb);
+  }
+
+  /**
+   * Adds an event listener for pong events.
+   * @param cb The callback to call on event fire.
+   */
+  public onPong(cb: (response: PongResponse) => void): void {
+    this.emitter.on(BridgeServerEvents.Pong, cb);
   }
 
   /**
@@ -36,18 +67,16 @@ export default class BridgeServer {
    * Attempt to send a message to the connected client socket, if a client is connected.
    * @param content The string to send to the luabridge.
    */
-  public send(content: string): Promise<void> {
-    // Throw an Error if there is no client connected.
-    if (!this.connected) {
-      throw new Error("No client connected to receive message.");
-    }
-
+  public send(command: Command): Promise<void> {
     return new Promise((resolve, reject) => {
-      // Remove any excess whitespace on our content.
-      const trimmed = content.trim();
+      // Throw an Error if there is no client connected.
+      if (!this.client || !this.connected) {
+        reject("No client connected to receive message.");
+        return;
+      }
 
       // We need to append a newline to the end, since that's our terminating character.
-      this.client?.write(Buffer.from(trimmed) + "\n", (err) => {
+      this.client.write(Buffer.from(JSON.stringify(command)) + "\n", (err) => {
         if (err) {
           reject(err);
         }
@@ -106,10 +135,31 @@ export default class BridgeServer {
    * @private
    */
   private interpret(buffer: Buffer): void {
-    // TODO: Make this check for the various commands and fire events accordingly.
+    const content = buffer.toString();
 
-    // Fire any event listeners for data.
-    this.emitter.emit("data", buffer.toString());
+    try {
+      const response = tryConvertToResponse(content);
+
+      switch (response.type) {
+        case ResponseType.Ack:
+          this.emitter.emit("ack", response as AckResponse);
+          break;
+
+        case ResponseType.Data:
+          this.emitter.emit("data", response as DataResponse);
+          break;
+
+        case ResponseType.Pong:
+          this.emitter.emit("pong", response as PongResponse);
+          break;
+
+        default:
+          throw new Error("Unknown response type received.");
+      }
+    } catch (err) {
+      console.error(err);
+      return;
+    }
   }
 
   /**
@@ -118,4 +168,12 @@ export default class BridgeServer {
   public get connected(): boolean {
     return this.client !== undefined && !this.client.destroyed;
   }
+}
+
+export enum BridgeServerEvents {
+  Connect = "connect",
+  Disconnect = "disconnect",
+  Acknowledgement = "ack",
+  Data = "data",
+  Pong = "pong",
 }

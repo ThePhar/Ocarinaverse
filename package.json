@@ -5,18 +5,20 @@
   "author": "Zach Parks <zach@alliware.com>",
   "license": "MIT",
   "private": true,
-
   "nodemonConfig": {
-    "watch": [ "src" ],
+    "watch": [
+      "src"
+    ],
     "ext": "ts,json",
-    "ignore": [ "src/**/*.spec.ts" ],
-    "exec": "ts-node ./src/index.ts"
+    "ignore": [
+      "src/**/*.spec.ts"
+    ],
+    "exec": "npx ts-node ./src/index.ts"
   },
-
   "scripts": {
-    "build": "rimraf dist && tsc"
+    "build": "rimraf dist && tsc",
+    "watch": "nodemon"
   },
-
   "dependencies": {},
   "devDependencies": {
     "@types/node": "^15.12.5",

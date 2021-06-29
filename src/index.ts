@@ -1,4 +1,5 @@
 import BridgeServer from "./client/bridgeserver";
+import { CommandType } from "./client/command";
 
 /**
  * The is the main function that is called at the start of our application. This is so we can have async-await in our
@@ -11,6 +12,15 @@ async function main() {
 
   server.onConnect(() => {
     console.log("CON");
+
+    server.send({
+      type: CommandType.Write,
+      data: {
+        address: 0x11a5d0 + 0x0034,
+        values: [0, 42],
+      },
+      uuid: "test",
+    });
   });
 
   server.onDisconnect(() => {
@@ -18,15 +28,15 @@ async function main() {
   });
 
   server.onAcknowledgement((response) => {
-    console.log(`ACK - ${response.type}: ${response.data}`);
+    console.log(`ACK ${response.uuid} - ${response.type}, DATA: ${response.data}`);
   });
 
   server.onData((response) => {
-    console.log(`DAT - ${response.type}: ${response.data}`);
+    console.log(`DAT ${response.uuid} - ${response.type}, DATA: ${response.data.bytes}`);
   });
 
   server.onPong((response) => {
-    console.log(`PNG - ${response.type}: ${response.data}`);
+    console.log(`PNG ${response.uuid} - ${response.type}, DATA: ${response.data}`);
   });
 }
 

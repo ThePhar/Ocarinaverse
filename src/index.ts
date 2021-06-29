@@ -8,6 +8,10 @@ async function main() {
   // Test code, ignore this.
   const server = new BridgeServer();
   server.listen(8081);
+
+  server.on("data", (content) => {
+    console.log(content);
+  });
 }
 
 // Our main entry point starts here.

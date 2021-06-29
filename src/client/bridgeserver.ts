@@ -1,4 +1,5 @@
 import * as net from "net";
+import EventEmitter from "events";
 
 /**
  * Single client TCP server to communicate with the luabridge script running on the emulator.
@@ -6,6 +7,18 @@ import * as net from "net";
 export default class BridgeServer {
   private server = net.createServer();
   private client?: net.Socket;
+  private emitter = new EventEmitter();
+
+  /**
+   * Add an event listener for this server.
+   * @param event The event to listen for.
+   * @param cb The callback function to call when the event is fired.
+   */
+  public on(event: "connect" | "disconnect", cb: () => void): void;
+  public on(event: "data", cb: (content: string) => void): void;
+  public on(event: "connect" | "disconnect" | "data", cb: (content: string) => void): void {
+    this.emitter.on(event, cb);
+  }
 
   /**
    * Start listening for connections on a given port.
@@ -14,6 +27,34 @@ export default class BridgeServer {
   public listen(port: number): void {
     this.server.listen(port);
     this.server.on("connection", this.connect.bind(this));
+
+    // Announce that we are waiting for a connection from the script.
+    console.log("Now awaiting a connection from the luabridge script...");
+  }
+
+  /**
+   * Attempt to send a message to the connected client socket, if a client is connected.
+   * @param content The string to send to the luabridge.
+   */
+  public send(content: string): Promise<void> {
+    // Throw an Error if there is no client connected.
+    if (!this.connected) {
+      throw new Error("No client connected to receive message.");
+    }
+
+    return new Promise((resolve, reject) => {
+      // Remove any excess whitespace on our content.
+      const trimmed = content.trim();
+
+      // We need to append a newline to the end, since that's our terminating character.
+      this.client?.write(Buffer.from(trimmed) + "\n", (err) => {
+        if (err) {
+          reject(err);
+        }
+
+        resolve();
+      });
+    });
   }
 
   /**
@@ -36,6 +77,9 @@ export default class BridgeServer {
     this.client.on("close", this.disconnect.bind(this));
     this.client.on("data", this.interpret.bind(this));
 
+    // Fire any event listeners for connections.
+    this.emitter.emit("connect");
+
     // Announce our connection.
     console.log("Established connection with luabridge script.");
   }
@@ -49,6 +93,9 @@ export default class BridgeServer {
     this.client?.removeAllListeners();
     this.client?.destroy();
 
+    // Fire any event listeners for disconnections.
+    this.emitter.emit("disconnect");
+
     // Announce our disconnection.
     console.log("Lost connection to luabridge script, awaiting a new connection...");
   }
@@ -59,8 +106,10 @@ export default class BridgeServer {
    * @private
    */
   private interpret(buffer: Buffer): void {
-    // TODO: Do something interesting with this!
-    console.log(`Received Data from ${this.client?.localAddress}: ${buffer}`);
+    // TODO: Make this check for the various commands and fire events accordingly.
+
+    // Fire any event listeners for data.
+    this.emitter.emit("data", buffer.toString());
   }
 
   /**

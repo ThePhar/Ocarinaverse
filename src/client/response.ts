@@ -34,12 +34,12 @@ export function tryConvertToResponse(json: string): Response {
   const obj = JSON.parse(json);
 
   // All responses, must include a uuid, type, and data.
-  if (!obj.type || !obj.uuid || !obj.data) {
+  if (obj.type === undefined || obj.uuid === undefined || obj.data === undefined) {
     throw new Error("Invalid obj, does not contain required fields.");
   }
 
   // Any response of type Data, must include a number array.
-  if (obj.type === ResponseType.Data && typeof obj.data[0] !== "number") {
+  if (obj.type === ResponseType.Data && (obj.data.bytes === undefined || typeof obj.data.bytes[0] !== "number")) {
     throw new Error("Data Response does not include an array of numbers.");
   }
 

@@ -9,8 +9,24 @@ async function main() {
   const server = new BridgeServer();
   server.listen(8081);
 
-  server.on("data", (content) => {
-    console.log(content);
+  server.onConnect(() => {
+    console.log("CON");
+  });
+
+  server.onDisconnect(() => {
+    console.log("DIS");
+  });
+
+  server.onAcknowledgement((response) => {
+    console.log(`ACK - ${response.type}: ${response.data}`);
+  });
+
+  server.onData((response) => {
+    console.log(`DAT - ${response.type}: ${response.data}`);
+  });
+
+  server.onPong((response) => {
+    console.log(`PNG - ${response.type}: ${response.data}`);
   });
 }
 

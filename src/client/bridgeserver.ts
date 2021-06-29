@@ -64,8 +64,8 @@ export default class BridgeServer {
   }
 
   /**
-   * Attempt to send a message to the connected client socket, if a client is connected.
-   * @param content The string to send to the luabridge.
+   * Attempt to send a command to the connected client socket, if a client is connected.
+   * @param command The command to send to the luabridge.
    */
   public send(command: Command): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -152,9 +152,6 @@ export default class BridgeServer {
         case ResponseType.Pong:
           this.emitter.emit("pong", response as PongResponse);
           break;
-
-        default:
-          throw new Error("Unknown response type received.");
       }
     } catch (err) {
       console.error(err);

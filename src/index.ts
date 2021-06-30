@@ -10,14 +10,18 @@ async function main() {
   const server = new BridgeServer();
   server.listen(8081);
 
+  const rc = 0x400020;
+  const incomingPlayAddr = rc + 6;
+  // const incomingItemAddr = rc + 8;
+
   server.onConnect(() => {
     console.log("CON");
 
     server.send({
       type: CommandType.Write,
       data: {
-        address: 0x11a5d0 + 0x0034,
-        values: [0, 42],
+        address: incomingPlayAddr,
+        values: [0x00, 0x02, 0x00, 0x01],
       },
       uuid: "test",
     });
